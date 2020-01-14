@@ -11,5 +11,5 @@ momentum: 0.9
 weight_decay: 0.0005
 snapshot: 700
 snapshot_prefix: "examples/DeepOneClass/VGG_JOINT_layers"
-solver_mode: GPU
+solver_mode: CPU
 

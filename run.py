@@ -88,7 +88,6 @@ curve will also be generated.
 
 '''
 
-
 from pylab import *
 import caffe
 import sys
@@ -139,7 +138,7 @@ def arguments():
     parser.add_argument("--visualize", default=True,
                         help="Save ROC curves")
 
-    return(parser)
+    return (parser)
 
 
 parser = arguments()
@@ -147,80 +146,69 @@ physical_dir = os.path.dirname(os.path.realpath(__file__))
 args = parser.parse_args()
 caffe_root = args.cafferoot
 sys.path.insert(0, caffe_root + 'python')
-caffe.set_device(0)
-caffe.set_mode_gpu()
+caffe.set_mode_cpu()
 subpath = args.dataset
-path = caffe_root+subpath
+path = caffe_root + subpath
 niter = int(args.niter)
-users = range(1,int(args.nclass)+1)
-if not os.path.isdir(physical_dir+'/'+args.output):
-	os.mkdir(physical_dir+'/'+args.output)
+users = range(1, int(args.nclass) + 1)
+if not os.path.isdir(physical_dir + '/' + args.output):
+    os.mkdir(physical_dir + '/' + args.output)
 
+for user_no in range(1, int(args.noneclass) + 1):
+    os.chdir(caffe_root)
+    print("Writing files done for user" + str(users[user_no - 1]) + "...")
+    if args.task == "novelty":
+        writeFileNames.write(user_no, users, path, subpath, physical_dir + "/")
+    elif args.task == "abnormal":
+        writeFileNames.writeAbnormal(user_no, users, path, subpath, physical_dir + "/")
+    solver = None
+    if args.type == "oneclass":
+        if args.backbone == "VGG":
+            solver = caffe.SGDSolver(physical_dir + '/solverVGG.prototxt')
+            solver.net.copy_from('models/VGG_ILSVRC_16_layers.caffemodel')
+        elif args.backbone == "Alex":
+            solver = caffe.SGDSolver(physical_dir + '/solverdistance.prototxt')
+            solver.net.copy_from('models/bvlc_alexnet.caffemodel')
 
-for user_no in range(1,int(args.noneclass)+1):
-	os.chdir(caffe_root)	
-	print("Writing files done for user"+ str(users[user_no-1]) +"...")
-	if args.task == "novelty":
-		writeFileNames.write(user_no, users, path,subpath, physical_dir+"/")
-	elif args.task == "abnormal":
-		writeFileNames.writeAbnormal(user_no, users, path,subpath, physical_dir+"/")
-	solver = None  
-	if args.type == "oneclass":
-		if args.backbone == "VGG":
-			solver = caffe.SGDSolver(physical_dir+'/solverVGG.prototxt')
-			solver.net.copy_from('models/VGG_ILSVRC_16_layers.caffemodel')
-		elif args.backbone == "Alex":
-			solver = caffe.SGDSolver(physical_dir+'/solverdistance.prototxt')
-			solver.net.copy_from('models/bvlc_alexnet.caffemodel')
-		
-		for it in range(niter):
-    			solver.step(1)  
-  			if args.backbone == "VGG":
-    				solver.test_nets[0].forward(start='conv1_1')
-  			elif args.backbone == "Alex":
-    				solver.test_nets[0].forward(start='conv1')
-	
-	print("Classifying files...")
-	os.chdir(physical_dir)
-	if args.backbone == "VGG":
-		model_def = 'deploy.prototxt'
-		if args.type == "oneclass":
-			model_weights = 'VGG_JOINT_layers_iter_'+str(niter)+'.caffemodel'
-		else:
-			model_weights = caffe_root+ 'models/VGG_ILSVRC_16_layers.caffemodel'
-		fpr,tpr,roc_auc = classifyImage.getResults(model_def,model_weights,args.name
-							  +args.name+'_'+str(users[user_no-1])+args.backbone+'_'+args.type+".txt",20,'VGG',caffe_root )
+        for it in range(niter):
+            solver.step(1)
+            if args.backbone == "VGG":
+                solver.test_nets[0].forward(start='conv1_1')
+            elif args.backbone == "Alex":
+                solver.test_nets[0].forward(start='conv1')
 
-	elif args.backbone == "Alex":
-		model_def = 'deploy_alex.prototxt'
-		if args.type == "oneclass":
-			model_weights = 'Alex_JOINT_layers_iter_'+str(niter)+'.caffemodel'
-		else:
-			model_weights = caffe_root + 'models/bvlc_alexnet.caffemodel'
-		fpr,tpr,roc_auc = classifyImage.getResults(model_def,model_weights,physical_dir+'/'+args.output+'/'
-						       +args.name+'_'+str(users[user_no-1])+args.backbone+'_'+args.type+".txt",40,'Alex',caffe_root )
-	print('Area under the curve: ' + str(roc_auc))
-	if args.visualize:
-		fig = plt.figure()
-		plt.plot(fpr, tpr,lw=2, label='ROC curce ' + str(roc_auc))
-		plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
-		plt.xlim([0.0, 1.0])
-		plt.ylim([0.0, 1.05])
-		plt.xlabel('False Positive Rate')
-		plt.ylabel('True Positive Rate')
-		plt.title('Receiver operating characteristic')
-		plt.legend(loc="lower right")
-		plt.savefig(physical_dir+'/'+args.output+'/'+args.name+'_'+str(users[user_no-1])+args.backbone+'_'+args.type+'.png') 
-		plt.close("all")
+    print("Classifying files...")
+    os.chdir(physical_dir)
+    if args.backbone == "VGG":
+        model_def = 'deploy.prototxt'
+        if args.type == "oneclass":
+            model_weights = 'VGG_JOINT_layers_iter_' + str(niter) + '.caffemodel'
+        else:
+            model_weights = caffe_root + 'models/VGG_ILSVRC_16_layers.caffemodel'
+        fpr, tpr, roc_auc = classifyImage.getResults(model_def, model_weights, args.name
+                                                     + args.name + '_' + str(
+            users[user_no - 1]) + args.backbone + '_' + args.type + ".txt", 20, 'VGG', caffe_root)
 
-
-
-
-
-
-
-
-
-
-
-
+    elif args.backbone == "Alex":
+        model_def = 'deploy_alex.prototxt'
+        if args.type == "oneclass":
+            model_weights = 'Alex_JOINT_layers_iter_' + str(niter) + '.caffemodel'
+        else:
+            model_weights = caffe_root + 'models/bvlc_alexnet.caffemodel'
+        fpr, tpr, roc_auc = classifyImage.getResults(model_def, model_weights, physical_dir + '/' + args.output + '/'
+                                                     + args.name + '_' + str(
+            users[user_no - 1]) + args.backbone + '_' + args.type + ".txt", 40, 'Alex', caffe_root)
+    print('Area under the curve: ' + str(roc_auc))
+    if args.visualize:
+        fig = plt.figure()
+        plt.plot(fpr, tpr, lw=2, label='ROC curce ' + str(roc_auc))
+        plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+        plt.xlim([0.0, 1.0])
+        plt.ylim([0.0, 1.05])
+        plt.xlabel('False Positive Rate')
+        plt.ylabel('True Positive Rate')
+        plt.title('Receiver operating characteristic')
+        plt.legend(loc="lower right")
+        plt.savefig(physical_dir + '/' + args.output + '/' + args.name + '_' + str(
+            users[user_no - 1]) + args.backbone + '_' + args.type + '.png')
+        plt.close("all")
